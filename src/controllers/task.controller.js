@@ -1,6 +1,6 @@
 const pool = require("../models/task.db");
 
-const getAllTask = async (req, res) => {
+const getAllTask = async (req, res, next) => {
   try {
     const result = await pool.query("SELECT * FROM task");
     if (result.length !== 0) {
@@ -17,15 +17,11 @@ const getAllTask = async (req, res) => {
       detail: `No se han encontrado tareas`,
     });
   } catch (err) {
-    res.json({
-      data: [],
-      success: false,
-      detail: `Error al buscar tareas`,
-    });
+    next(err);
   }
 };
 
-const getSingleTask = async (req, res) => {
+const getSingleTask = async (req, res, next) => {
   try {
     const { id } = req.params;
     const task = await pool.query("SELECT * FROM task WHERE id = $1", [id]);
@@ -42,15 +38,11 @@ const getSingleTask = async (req, res) => {
       task: task.rows,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      message: "Error retrieving task",
-      success: false,
-      task: [],
-    });
+    next(err);
   }
 };
-const createTask = async (req, res) => {
+
+const createTask = async (req, res, next) => {
   try {
     const { title, description } = req.body;
 
@@ -64,35 +56,39 @@ const createTask = async (req, res) => {
       detail: `Tarea creada con ID ${newTask.rows[0].id}`,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).send({
-      success: false,
-      detail: err.message,
-    });
+    next(err);
   }
 };
 
-const updateTask = async (req, res) => {
-  const { id } = req.params;
-  const { title, description } = req.body;
+const updateTask = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { title, description } = req.body;
 
-  const updatedTask = await pool.query(
-    "UPDATE task SET title = $1, description = $2 WHERE id = $3 RETURNING *",
-    [title, description, id]
-  );
+    const updatedTask = await pool.query(
+      "UPDATE task SET title = $1, description = $2 WHERE id = $3 RETURNING *",
+      [title, description, id]
+    );
 
-  if (updatedTask.rows.length === 0) {
-    return res.status(404).send({
-      message: "Task not found",
-      success: false,
-      task: [],
+    if (updatedTask.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+        task: [],
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Task ${id} updated successfully`,
+      task: updatedTask.rows[0],
     });
+  } catch (err) {
+    next(err);
   }
-
-  res.send(updatedTask.rows[0]);
 };
 
-const deleteTask = async (req, res) => {
+const deleteTask = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -114,12 +110,7 @@ const deleteTask = async (req, res) => {
       taskDeleted: deletedTask.rows[0],
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).send({
-      message: "Error deleting task",
-      success: false,
-      task: [],
-    });
+    next(err);
   }
 };
 
